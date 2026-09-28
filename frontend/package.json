@@ -1,0 +1,11 @@
+{
+  "name": "assurley-frontend",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+  "dev": "python -m http.server 5173 -d src",
+  "build": "node build.mjs",
+  "preview": "python -m http.server 4173 -d dist"
+}
+}
