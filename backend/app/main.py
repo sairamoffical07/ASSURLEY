@@ -30,9 +30,15 @@ from app.ocr import (
 
 APP_DIR = Path(__file__).resolve().parent.parent
 load_dotenv(APP_DIR / ".env", override=True)
-UPLOAD_DIR = Path(os.getenv("UPLOAD_DIR", APP_DIR / "data" / "uploads"))
+if os.getenv("VERCEL"):
+    DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:////tmp/assurley.db")
+    UPLOAD_DIR = Path("/tmp/uploads")
+else:
+    DATABASE_URL = os.getenv("DATABASE_URL", f"sqlite:///{APP_DIR / 'data' / 'assurley.db'}")
+    UPLOAD_DIR = Path(os.getenv("UPLOAD_DIR", APP_DIR / "data" / "uploads"))
+
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
-DATABASE_URL = os.getenv("DATABASE_URL", f"sqlite:///{APP_DIR / 'data' / 'assurley.db'}")
+
 ADMIN_KEY = os.getenv("ADMIN_KEY")
 ALLOWED_ORIGINS = [x.strip() for x in os.getenv("ALLOWED_ORIGINS", "http://localhost:5173").split(",") if x.strip()]
 MAX_UPLOAD_MB = int(os.getenv("MAX_UPLOAD_MB", "12"))

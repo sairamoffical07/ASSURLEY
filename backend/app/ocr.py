@@ -13,7 +13,8 @@ import cv2
 import numpy as np
 from PIL import Image, ImageEnhance, ImageFilter, ImageOps
 import pymupdf  # PyMuPDF
-import pytesseract
+import requests
+import base64
 
 # Configure Pillow decompression bomb protection
 Image.MAX_IMAGE_PIXELS = 60_000_000
@@ -473,6 +474,52 @@ def determine_ocr_status(confidence: float, text: str) -> str:
         return "REVIEW_REQUIRED"
 
 
+
+def call_cloud_ocr(image_bytes: bytes) -> str:
+    """
+    Calls a Cloud API (OpenAI GPT-4o-mini) to perform robust OCR.
+    This replaces local Tesseract, making it compatible with Vercel Serverless.
+    """
+    api_key = os.getenv("OPENAI_API_KEY")
+    if not api_key:
+        return "[OCR FAILED: OPENAI_API_KEY environment variable is not set. Please configure it in your Vercel or local environment.]"
+    
+    base64_image = base64.b64encode(image_bytes).decode("utf-8")
+    
+    headers = {
+        "Content-Type": "application/json",
+        "Authorization": f"Bearer {api_key}"
+    }
+    
+    payload = {
+        "model": "gpt-4o-mini",
+        "messages": [
+            {
+                "role": "system",
+                "content": "You are a specialized OCR engine. Extract all text from the provided document accurately. Preserve numbers, dates, and names exactly. Output ONLY the extracted text, with no markdown, conversational filler, or introductory phrases."
+            },
+            {
+                "role": "user",
+                "content": [
+                    {
+                        "type": "image_url",
+                        "image_url": {
+                            "url": f"data:image/jpeg;base64,{base64_image}"
+                        }
+                    }
+                ]
+            }
+        ],
+        "max_tokens": 1500
+    }
+    
+    try:
+        response = requests.post("https://api.openai.com/v1/chat/completions", headers=headers, json=payload, timeout=45)
+        response.raise_for_status()
+        return response.json()["choices"][0]["message"]["content"].strip()
+    except Exception as e:
+        return f"[OCR FAILED: Cloud API Error: {str(e)}]"
+
 def process_document_pipeline(file_path: str, mime: str) -> dict[str, Any]:
     """
     Unified, robust OCR pipeline for images and PDFs:
@@ -493,7 +540,7 @@ def process_document_pipeline(file_path: str, mime: str) -> dict[str, Any]:
             "ocrConfidence": 0.0,
             "ocrStatus": "FAILED",
             "pageCount": 0,
-            "ocrEngine": "TESSERACT",
+            "ocrEngine": "CLOUD_API",
             "ocrConfig": {},
             "processingWarnings": ["Document file not found on server."],
             "pages": [],
@@ -515,7 +562,7 @@ def process_document_pipeline(file_path: str, mime: str) -> dict[str, Any]:
                     "ocrConfidence": 0.0,
                     "ocrStatus": "FAILED",
                     "pageCount": 0,
-                    "ocrEngine": "TESSERACT",
+                    "ocrEngine": "CLOUD_API",
                     "ocrConfig": {},
                     "processingWarnings": ["PDF contains no pages."],
                     "pages": [],
@@ -639,7 +686,7 @@ def process_document_pipeline(file_path: str, mime: str) -> dict[str, Any]:
                 "ocrConfidence": overall_conf,
                 "ocrStatus": ocr_status,
                 "pageCount": total_pages,
-                "ocrEngine": "TESSERACT",
+                "ocrEngine": "CLOUD_API",
                 "ocrConfig": chosen_configs[0] if chosen_configs else {"mode": "pdf"},
                 "processingWarnings": warnings,
                 "pages": pages_meta,
@@ -706,7 +753,7 @@ def process_document_pipeline(file_path: str, mime: str) -> dict[str, Any]:
                     "ocrConfidence": overall_conf,
                     "ocrStatus": ocr_status,
                     "pageCount": total_pages,
-                    "ocrEngine": "TESSERACT",
+                    "ocrEngine": "CLOUD_API",
                     "ocrConfig": chosen_configs[0] if chosen_configs else {},
                     "processingWarnings": warnings,
                     "pages": pages_meta,
@@ -731,7 +778,7 @@ def process_document_pipeline(file_path: str, mime: str) -> dict[str, Any]:
                 "ocrConfidence": ocr_res.confidence,
                 "ocrStatus": ocr_status,
                 "pageCount": 1,
-                "ocrEngine": "TESSERACT",
+                "ocrEngine": "CLOUD_API",
                 "ocrConfig": {
                     "variant": ocr_res.variant_name,
                     "psm": ocr_res.psm_mode,
@@ -756,7 +803,7 @@ def process_document_pipeline(file_path: str, mime: str) -> dict[str, Any]:
             "ocrConfidence": 0.0,
             "ocrStatus": "FAILED",
             "pageCount": 0,
-            "ocrEngine": "TESSERACT",
+            "ocrEngine": "CLOUD_API",
             "ocrConfig": {},
             "processingWarnings": warnings + [f"Processing exception: {str(e)[:180]}"],
             "pages": [],
