@@ -1,4 +1,4 @@
-const API_URL = (window.ASSURLEY_API_URL || 'http://localhost:8000').replace(/\/$/, '');
+const API_URL = (window.ASSURLEY_API_URL || '').replace(/\/$/, '');
 const INSTAGRAM_URL = window.ASSURLEY_INSTAGRAM_URL || '';
 const app = document.querySelector('#app');
 const esc = (v='') => String(v).replace(/[&<>'"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
