@@ -1,14 +1,14 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "services": {
+    "frontend": {
+      "root": "frontend",
+      "buildCommand": "npm run build",
+      "outputDirectory": "dist"
+    },
     "backend": {
       "root": "backend",
       "framework": "fastapi"
-    },
-    "frontend": {
-      "root": "frontend",
-      "buildCommand": "node build.mjs",
-      "outputDirectory": "dist"
     }
   },
   "rewrites": [
